@@ -21,15 +21,38 @@ void SysCTest::RunThread()
     }
 }
 
+/* http://forums.accellera.org/topic/5850-how-do-i-terminate-all-threads-at-end-of-simulation/ */
+
+void SysCTest::KillAllRunningChildProcesses(sc_process_handle& h)
+{
+    const ::std::vector<sc_object*>& children = h.get_child_objects();
+    for (unsigned i(0); i < children.size(); ++i) {
+        // convert objects to process handles, if valid() and !terminated() call kill(SC_INCLUDE_DESCENDANTS) 
+        sc_process_handle h = sc_process_handle(children.at(i));
+        if (h.valid()) {
+            if (!h.terminated()) {
+                cout << "Killing thread: " << h.name() << endl;
+                h.kill(SC_INCLUDE_DESCENDANTS);
+            }
+        }
+    }
+}
+
 SysCTest::~SysCTest()
 {
     delete[] mProcStart;
+
+    for (uint32_t t = 0; t < childProcesses; ++t)
+    {
+        KillAllRunningChildProcesses(mThreadHandles[t]);
+    }
 }
 
 void SysCTest::Init()
 {
     mProcStart = new sc_event[childProcesses];
-    
+    mThreadHandles.resize(childProcesses);
+
     for (uint32_t t = 0; t < childProcesses; ++t)
     {
         sc_spawn_options opt;
@@ -38,7 +61,7 @@ void SysCTest::Init()
 
         ostringstream oss;
         oss << "Counter" << t;
-        sc_spawn(sc_bind(&SysCTest::Counter, this, t), oss.str().c_str(), &opt);
+        mThreadHandles[t] = sc_spawn(sc_bind(&SysCTest::Counter, this, t), oss.str().c_str(), &opt);
     }
 }
 void SysCTest::Counter(uint32_t start)
