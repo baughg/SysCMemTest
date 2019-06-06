@@ -62,18 +62,21 @@ void SysCTest::Init()
         ostringstream oss;
         oss << "Counter" << t;
         mThreadHandles[t] = sc_spawn(sc_bind(&SysCTest::Counter, this, t), oss.str().c_str(), &opt);
+        sc_set_stack_size(mThreadHandles[t], 16);
     }
 }
 void SysCTest::Counter(uint32_t start)
 {
+    uint32_t stack_dummy[256];
     std::vector<uint32_t> buffer(1 << 16);
-
+    
     while (true) {
         std::cout << sc_time_stamp() << " Counter(" << start << ") running" << std::endl;
 
         for (uint32_t c = 0; c < start; ++c)
         {
             buffer[c]++;
+            stack_dummy[c % 256]++;
             sc_core::wait(sc_time(1, SC_PS));
         }
 
